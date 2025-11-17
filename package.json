@@ -1,0 +1,35 @@
+{
+  "name": "neuro",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@react-three/drei": "^10.7.6",
+    "@react-three/fiber": "^9.4.0",
+    "@react-three/postprocessing": "^3.0.4",
+    "@react-three/xr": "^6.6.27",
+    "@types/node": "^24.9.1",
+    "@types/react": "^19.2.2",
+    "@types/three": "^0.180.0",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.1.14",
+    "threads.js": "^0.6.1",
+    "three": "^0.180.0",
+    "typescript": "^5.9.3",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.16",
+    "autoprefixer": "^10.4.21"
+  }
+}

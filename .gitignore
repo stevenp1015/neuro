@@ -1,0 +1,102 @@
+node_modules
+# Dependencies, build, OS files
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# TypeScript outputs
+*.tsbuildinfo
+
+# Output of build tools
+coverage/
+out/
+tmp/
+temp/
+.cache/
+.next/
+.vercel/
+static/
+
+# OS junk
+Icon?
+ehthumbs.db
+
+# Personal system & deployment stuff
+*.swp
+*.bak
+*.orig
+*.tmp
+*.local
+*.env.local
+
+# Sora tips, random markdown and research files
+Sora2_Tips_and_Tricks.md
+*.tips.md
+*.cheatsheet.md
+*.notes.md
+
+# Three.js/graphics/asset junk
+*.blend
+*.fbx
+*.obj
+*.gltf
+*.glb
+*.stl
+*.usd
+*.usdz
+*.c4d
+*.3ds
+assets/
+textures/
+thumbnails/
+snapshots/
+
+# VSCode settings and junk
+.history/
+.vscode/
+
+# Next.js specific (if used)
+.next/
+out/
+.cache/
+.next/cache/
+
+# OS, Editor, and Misc
+.DS_Store
+npm-debug.log*
+*.tgz
+
+# Crash logs
+*.pid
+
+######################################
+# -------- Special Mystic Falls --------
+# Dark magic artifacts
+dark_objects/
+twin_merge_notes.txt
+kai_parker_schemes/
+saltzman_family_secrets/
+lizzie-mood-log.json
+josie-dark-magic-profile.json
+
+# True secrets
+salvatore_boarding_school_vault/
+hope_mikaelson_hybrid_states/
+the_merge_prophecy.txt
+
+# End of the most tricked out .gitignore ever
