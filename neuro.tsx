@@ -88,9 +88,7 @@ export default function NeuroVectorExplorerV3() {
 
         {showAxisRails && (
           <AxisRails
-            length={150}
             showLabels={true}
-            activeAxes={activeAxes}
           />
         )}
 

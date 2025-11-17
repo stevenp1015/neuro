@@ -23,7 +23,7 @@ export function DiagnosisBoundaries({
       return {
         name: name.charAt(0).toUpperCase() + name.slice(1),
         position,
-        radius: attractor.radius,
+        radius: attractor.radius * 5, // Scale 10D radius to 3D space (matches 6x particle spread * 0.83 for visual boundary)
         color: attractor.color,
         strength: attractor.strength,
       };

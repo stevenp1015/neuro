@@ -382,7 +382,7 @@ export function generateNeurochemicalField(numPoints: number = 15000): Neurochem
       // Generate random point in 3D sphere around attractor position
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = Math.pow(Math.random(), 1/3) * attractor.radius; // Uniform in volume
+      const r = Math.pow(Math.random(), 1/3) * attractor.radius * 6; // Uniform in volume, scaled 6x for 3D space
 
       const offset = new Vector3(
         r * Math.sin(phi) * Math.cos(theta),
