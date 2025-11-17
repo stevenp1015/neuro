@@ -3,7 +3,7 @@ import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { NEURO_AXES } from "./NEURO_AXES";
+import { ATTRACTOR_REGIONS, projectTo3D, calculateSymptoms } from "./NeurochemistryModel";
 
 interface AxisRailsProps {
   length?: number;
@@ -14,66 +14,106 @@ interface AxisRailsProps {
 export function AxisRails({
   length = 150,
   showLabels = true,
-  activeAxes = new Set(NEURO_AXES.map((_, i) => i)),
+  activeAxes,
 }: AxisRailsProps) {
+  // Calculate attractor positions in 3D space
+  const attractorPositions = useMemo(() => {
+    return Object.entries(ATTRACTOR_REGIONS).map(([name, attractor]) => {
+      const symptoms = calculateSymptoms(attractor.center);
+      const position = projectTo3D(attractor.center, symptoms);
+      return {
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        position,
+        color: attractor.color,
+      };
+    });
+  }, []);
+
+  // Create connections between attractors
+  // Strategy: Connect each attractor to its 2-3 nearest neighbors for a network effect
+  const connections = useMemo(() => {
+    const conns: Array<{
+      start: THREE.Vector3;
+      end: THREE.Vector3;
+      distance: number;
+      color1: string;
+      color2: string;
+      name1: string;
+      name2: string;
+    }> = [];
+
+    for (let i = 0; i < attractorPositions.length; i++) {
+      const a1 = attractorPositions[i];
+
+      // Calculate distances to all other attractors
+      const distances = attractorPositions
+        .map((a2, j) => ({
+          index: j,
+          distance: a1.position.distanceTo(a2.position),
+          attractor: a2,
+        }))
+        .filter((d) => d.index !== i) // Exclude self
+        .sort((a, b) => a.distance - b.distance); // Sort by distance
+
+      // Connect to 2 nearest neighbors
+      for (let k = 0; k < Math.min(2, distances.length); k++) {
+        const neighbor = distances[k];
+
+        // Avoid duplicate connections (only add if i < j)
+        if (i < neighbor.index) {
+          conns.push({
+            start: a1.position,
+            end: neighbor.attractor.position,
+            distance: neighbor.distance,
+            color1: a1.color,
+            color2: neighbor.attractor.color,
+            name1: a1.name,
+            name2: neighbor.attractor.name,
+          });
+        }
+      }
+    }
+
+    return conns;
+  }, [attractorPositions]);
+
   return (
     <group>
-      {NEURO_AXES.map((axis, index) => {
-        const isActive = activeAxes.has(index);
-        return (
-          <AxisRail
-            key={axis.id}
-            axis={axis}
-            index={index}
-            length={length}
-            showLabels={showLabels}
-            isActive={isActive}
-          />
-        );
-      })}
+      {connections.map((conn, idx) => (
+        <AxisRail
+          key={idx}
+          start={conn.start}
+          end={conn.end}
+          color1={conn.color1}
+          color2={conn.color2}
+          name1={conn.name1}
+          name2={conn.name2}
+          showLabels={showLabels}
+        />
+      ))}
     </group>
   );
 }
 
 interface AxisRailProps {
-  axis: (typeof NEURO_AXES)[number];
-  index: number;
-  length: number;
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+  color1: string;
+  color2: string;
+  name1: string;
+  name2: string;
   showLabels: boolean;
-  isActive: boolean;
 }
 
-function AxisRail({ axis, index, length, showLabels, isActive }: AxisRailProps) {
+function AxisRail({ start, end, color1, color2, name1, name2, showLabels }: AxisRailProps) {
   const railRef = useRef<THREE.Line>(null);
   const particlesRef = useRef<THREE.Points>(null);
 
-  // Map each neurochemical dimension to its contribution in the 3D projection
-  // Based on projectTo3D function: X=(DA0+DA1)/2, Y=(NE+(100-GABA))/2, Z=(5HT+(100-HPA))/2
-  const direction = useMemo(() => {
-    const projectionMap: Record<number, THREE.Vector3> = {
-      0: new THREE.Vector3(1, 0, 0),      // Tonic DA → +X
-      1: new THREE.Vector3(1, 0, 0),      // Phasic DA → +X
-      2: new THREE.Vector3(0.3, 0.3, 0),  // Salience error (not in projection, show weakly)
-      3: new THREE.Vector3(0.2, 0, 0.2),  // DAT reuptake (not in projection, show weakly)
-      4: new THREE.Vector3(0, 0, 1),      // Serotonin → +Z
-      5: new THREE.Vector3(0, 1, 0),      // NE → +Y
-      6: new THREE.Vector3(0, -1, 0),     // GABA → -Y (inverted in projection)
-      7: new THREE.Vector3(0.2, 0.3, 0),  // Glutamate (not in projection, show weakly)
-      8: new THREE.Vector3(0, 0.3, 0.2),  // Amygdala (not in projection, show weakly)
-      9: new THREE.Vector3(0, 0, -1),     // HPA → -Z (inverted in projection)
-    };
-
-    return (projectionMap[index] || new THREE.Vector3(1, 0, 0)).normalize();
-  }, [index]);
-
-  const startPoint = direction.clone().multiplyScalar(-length);
-  const endPoint = direction.clone().multiplyScalar(length);
-
   // Rail geometry
   const railGeometry = useMemo(() => {
-    const points = [startPoint, endPoint];
+    const points = [start, end];
     return new THREE.BufferGeometry().setFromPoints(points);
-  }, [startPoint, endPoint]);
+  }, [start, end]);
 
   // Particles flowing along rail
   const { particleGeometry, particleCount } = useMemo(() => {
@@ -83,7 +123,7 @@ function AxisRail({ axis, index, length, showLabels, isActive }: AxisRailProps) 
 
     for (let i = 0; i < count; i++) {
       const t = i / count; // 0 to 1 along rail
-      const pos = startPoint.clone().lerp(endPoint, t);
+      const pos = start.clone().lerp(end, t);
 
       positions[i * 3] = pos.x;
       positions[i * 3 + 1] = pos.y;
@@ -97,76 +137,89 @@ function AxisRail({ axis, index, length, showLabels, isActive }: AxisRailProps) 
     geom.setAttribute("phase", new THREE.BufferAttribute(phases, 1));
 
     return { particleGeometry: geom, particleCount: count };
-  }, [startPoint, endPoint]);
+  }, [start, end]);
+
+  // Mix colors for gradient effect
+  const mixedColor = useMemo(() => {
+    const c1 = new THREE.Color(color1);
+    const c2 = new THREE.Color(color2);
+    return new THREE.Color().lerpColors(c1, c2, 0.5);
+  }, [color1, color2]);
 
   const particleMaterial = useMemo(
     () =>
       new THREE.ShaderMaterial({
         uniforms: {
           time: { value: 0 },
-          color: { value: new THREE.Color(axis.color) },
-          isActive: { value: isActive ? 1.0 : 0.3 },
+          color1: { value: new THREE.Color(color1) },
+          color2: { value: new THREE.Color(color2) },
         },
         vertexShader: `
           uniform float time;
-          uniform float isActive;
+          uniform vec3 color1;
+          uniform vec3 color2;
           attribute float phase;
 
           varying float vAlpha;
+          varying vec3 vColor;
 
           void main() {
             // Flow animation
-            float flow = fract(phase + time * 0.5);
+            float flow = fract(phase + time * 0.3);
+
+            // Color gradient along rail
+            vColor = mix(color1, color2, phase);
 
             vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
             gl_Position = projectionMatrix * mvPosition;
 
             // Pulsing particles
-            float pulse = sin(flow * 3.14159) * isActive;
-            gl_PointSize = (1.0 - pulse * 0.5) * (1000.0 / -mvPosition.z);
+            float pulse = sin(flow * 3.14159);
+            gl_PointSize = (2.0 + pulse * 1.0) * (800.0 / -mvPosition.z);
 
-            vAlpha = pulse * 2.6;
+            vAlpha = pulse * 0.8;
           }
         `,
         fragmentShader: `
-          uniform vec3 color;
           varying float vAlpha;
+          varying vec3 vColor;
 
           void main() {
             vec2 center = gl_PointCoord - 0.5;
             float dist = length(center);
-            if (dist > 0.8) discard;
+            if (dist > 0.5) discard;
 
-            float alpha = (1.5 - dist * 2.5) * vAlpha;
-            gl_FragColor = vec4(color, alpha);
+            float alpha = (1.0 - dist * 2.0) * vAlpha;
+            gl_FragColor = vec4(vColor, alpha);
           }
         `,
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       }),
-    [axis.color, isActive]
+    [color1, color2]
   );
 
   // Animate particles
   useFrame((state) => {
     if (particleMaterial.uniforms) {
       particleMaterial.uniforms.time.value = state.clock.elapsedTime;
-      particleMaterial.uniforms.isActive.value = isActive ? 1.0 : 0.3;
     }
   });
 
-  const railColor = new THREE.Color(axis.color);
-  const railOpacity = isActive ? 0.4 : 0.1;
+  // Midpoint for label
+  const midpoint = useMemo(() => {
+    return new THREE.Vector3().lerpVectors(start, end, 0.5);
+  }, [start, end]);
 
   return (
     <group>
       {/* Rail line */}
       <line ref={railRef} geometry={railGeometry}>
         <lineBasicMaterial
-          color={railColor}
+          color={mixedColor}
           transparent
-          opacity={railOpacity}
+          opacity={0.3}
           linewidth={2}
         />
       </line>
@@ -178,45 +231,20 @@ function AxisRail({ axis, index, length, showLabels, isActive }: AxisRailProps) 
         material={particleMaterial}
       />
 
-      {/* Axis labels at endpoints */}
+      {/* Optional label at midpoint showing connection */}
       {showLabels && (
-        <>
-          <Text
-            position={endPoint}
-            fontSize={3}
-            color={axis.color}
-            anchorX="center"
-            anchorY="middle"
-            outlineWidth={0.15}
-            outlineColor="#000000"
-          >
-            {axis.name}
-          </Text>
-          <Text
-            position={startPoint}
-            fontSize={2}
-            color={axis.color}
-            anchorX="center"
-            anchorY="middle"
-            outlineWidth={0.1}
-            outlineColor="#000000"
-            opacity={0.6}
-          >
-            Low
-          </Text>
-          <Text
-            position={endPoint.clone().multiplyScalar(0.9)}
-            fontSize={2}
-            color={axis.color}
-            anchorX="center"
-            anchorY="middle"
-            outlineWidth={0.1}
-            outlineColor="#000000"
-            opacity={0.6}
-          >
-            High
-          </Text>
-        </>
+        <Text
+          position={midpoint}
+          fontSize={2}
+          color={mixedColor}
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.1}
+          outlineColor="#000000"
+          opacity={0.5}
+        >
+          {`${name1} ↔ ${name2}`}
+        </Text>
       )}
     </group>
   );
