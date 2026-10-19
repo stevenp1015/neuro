@@ -3,16 +3,14 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'NeuroVector Explorer v3.0',
-  description: 'Fluid Neurochemical Landscape - Interactive 10D exploration',
+  title: 'NeuroVector Explorer v4',
+  description: 'Fly through a continuous neurochemical landscape where the space is the state.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
