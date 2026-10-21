@@ -13,18 +13,11 @@
 // The `perception` slider blends between first-person (1) and a neutral
 // observer camera (0), so you can compare "what it is" with "what it's like".
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import { EffectComposer } from "@react-three/postprocessing";
 import {
-  Bloom,
-  BrightnessContrast,
-  ChromaticAberration,
-  EffectComposer,
-  HueSaturation,
-  Noise,
-  Vignette,
-} from "@react-three/postprocessing";
-import type {
+  BlendFunction,
   BloomEffect,
   BrightnessContrastEffect,
   ChromaticAberrationEffect,
@@ -37,13 +30,23 @@ import { engine } from "../engine/engine";
 import { useUI } from "../store";
 
 export function Perception() {
-  const bloom = useRef<BloomEffect>(null);
-  const hue = useRef<HueSaturationEffect>(null);
-  const bc = useRef<BrightnessContrastEffect>(null);
-  const ca = useRef<ChromaticAberrationEffect>(null);
-  const noise = useRef<NoiseEffect>(null);
-  const vignette = useRef<VignetteEffect>(null);
-  const caOffset = useMemo(() => new THREE.Vector2(0.0005, 0.0005), []);
+  // Effects are built here and handed to the composer as plain objects
+  // (<primitive>) instead of via the JSX wrappers + refs: older versions of
+  // @react-three/postprocessing JSON.stringify their props, and with React 19
+  // a ref *is* a prop, so a ref holding an effect blows up as a circular structure.
+  const fx = useMemo(() => {
+    const noise = new NoiseEffect({ blendFunction: BlendFunction.COLOR_DODGE, premultiply: true });
+    noise.blendMode.opacity.value = 0.02;
+    return {
+      bloom: new BloomEffect({ blendFunction: BlendFunction.ADD, mipmapBlur: true, luminanceThreshold: 0.08, luminanceSmoothing: 0.3, intensity: 1, radius: 0.7 }),
+      hue: new HueSaturationEffect({ hue: 0, saturation: 0 }),
+      bc: new BrightnessContrastEffect({ brightness: 0, contrast: 0 }),
+      ca: new ChromaticAberrationEffect({ offset: new THREE.Vector2(0.0005, 0.0005), radialModulation: false, modulationOffset: 0 }),
+      noise,
+      vignette: new VignetteEffect({ eskil: false, offset: 0.3, darkness: 0.35 }),
+    };
+  }, []);
+  useEffect(() => () => Object.values(fx).forEach((effect) => effect.dispose()), [fx]);
   const { scene } = useThree();
   const bg = useMemo(() => new THREE.Color("#02030a"), []);
   const fog = useMemo(() => new THREE.FogExp2("#02030a", 0.0011), []);
@@ -74,28 +77,28 @@ export function Perception() {
     const racing = Math.max(0, st.thought - 0.6) * p;
     const sleep = st.sleep * p;
 
-    if (hue.current) {
+    {
       // anhedonia drains color; good mood saturates it
-      hue.current.saturation = THREE.MathUtils.clamp(dMood * 1.1 + dPleasure * 0.9 - sleep * 0.6, -0.92, 0.28);
-      hue.current.hue = -threat * 0.12 + salience * 0.25 * Math.sin(performance.now() / 900);
+      fx.hue.saturation = THREE.MathUtils.clamp(dMood * 1.1 + dPleasure * 0.9 - sleep * 0.6, -0.92, 0.28);
+      fx.hue.hue = -threat * 0.12 + salience * 0.25 * Math.sin(performance.now() / 900);
     }
-    if (bc.current) {
-      bc.current.brightness = THREE.MathUtils.clamp(dMood * 0.22 - sleep * 0.35, -0.4, 0.12);
-      bc.current.contrast = THREE.MathUtils.clamp(threat * 0.5 - Math.max(0, -dMood) * 0.25, -0.3, 0.35);
+    {
+      fx.bc.brightness = THREE.MathUtils.clamp(dMood * 0.22 - sleep * 0.35, -0.4, 0.12);
+      fx.bc.contrast = THREE.MathUtils.clamp(threat * 0.5 - Math.max(0, -dMood) * 0.25, -0.3, 0.35);
     }
-    if (bloom.current) {
-      bloom.current.intensity = THREE.MathUtils.clamp(0.9 + dPleasure * 1.6 + dMood * 0.8 + salience * 1.0 - sleep * 0.7, 0.2, 2.2);
+    {
+      fx.bloom.intensity = THREE.MathUtils.clamp(0.9 + dPleasure * 1.6 + dMood * 0.8 + salience * 1.0 - sleep * 0.7, 0.2, 2.2);
     }
-    if (ca.current) {
+    {
       const off = 0.0003 + salience * 0.0045 + racing * 0.0025 + threat * 0.001;
-      ca.current.offset.set(off, off * 0.6);
+      fx.ca.offset.set(off, off * 0.6);
     }
-    if (noise.current) {
-      noise.current.blendMode.opacity.value = THREE.MathUtils.clamp(0.02 + salience * 0.5 + threat * 0.15, 0, 0.45);
+    {
+      fx.noise.blendMode.opacity.value = THREE.MathUtils.clamp(0.02 + salience * 0.5 + threat * 0.15, 0, 0.45);
     }
-    if (vignette.current) {
-      vignette.current.darkness = THREE.MathUtils.clamp(0.35 + threat * 1.3 + Math.max(0, -dMood) * 0.6 + sleep * 0.7, 0, 1.25);
-      vignette.current.offset = THREE.MathUtils.clamp(0.3 - threat * 0.25, 0.05, 0.5);
+    {
+      fx.vignette.darkness = THREE.MathUtils.clamp(0.35 + threat * 1.3 + Math.max(0, -dMood) * 0.6 + sleep * 0.7, 0, 1.25);
+      fx.vignette.offset = THREE.MathUtils.clamp(0.3 - threat * 0.25, 0.05, 0.5);
     }
 
     // background + fog: deep blue baseline, warm when good, red-black under threat, grey when flat
@@ -119,12 +122,12 @@ export function Perception() {
 
   return (
     <EffectComposer multisampling={0}>
-      <Bloom ref={bloom} mipmapBlur luminanceThreshold={0.08} luminanceSmoothing={0.3} intensity={1} radius={0.7} />
-      <HueSaturation ref={hue} saturation={0} hue={0} />
-      <BrightnessContrast ref={bc} brightness={0} contrast={0} />
-      <ChromaticAberration ref={ca} offset={caOffset} radialModulation={false} modulationOffset={0} />
-      <Noise ref={noise} premultiply opacity={0.02} />
-      <Vignette ref={vignette} eskil={false} offset={0.3} darkness={0.35} />
+      <primitive object={fx.bloom} />
+      <primitive object={fx.hue} />
+      <primitive object={fx.bc} />
+      <primitive object={fx.ca} />
+      <primitive object={fx.noise} />
+      <primitive object={fx.vignette} />
     </EffectComposer>
   );
 }
