@@ -1,700 +1,272 @@
-# NeuroVector Explorer v3.0
-## Fluid Neurochemical Landscape Visualization
+# NeuroVector Explorer v4
+## The space *is* the state
 
-### Abstract
+NeuroVector Explorer is an immersive 3D world where **every point in space is a complete brain configuration**. You fly through it in first person, and wherever you are, you *are* that brain: color, light, sound, how fast you move, how well you can focus, even the sentence your inner voice is saying all come from the chemistry at your coordinates. Leave it running and time does its thing too: sleep, circadian rhythms, tolerance, withdrawal, and in some regions, mood cycles that nobody scripted.
 
-NeuroVector Explorer v3.0 is an immersive 3D visualization system that challenges the discrete categorical model of psychiatric diagnosis by rendering mental health as a continuous n-dimensional neurochemical state space. By projecting 10-dimensional neurotransmitter dynamics into navigable 3D space, the system demonstrates that DSM-5 diagnostic boundaries are arbitrary thresholds imposed on fundamentally continuous neurobiological processes.
+Diagnostic labels aren't places on this map. They're **rules laid on top of it**: a severity cutoff decides what counts as a symptom, you need N of M symptoms, for long enough. You can turn every one of those knobs and watch the labels redraw themselves while the chemistry underneath doesn't move at all.
 
----
-
-## Table of Contents
-
-1. [Conceptual Framework](#conceptual-framework)
-2. [Neurochemistry Model](#neurochemistry-model)
-3. [System Architecture](#system-architecture)
-4. [Dimensional Reduction & Projection](#dimensional-reduction--projection)
-5. [Visualization Techniques](#visualization-techniques)
-6. [Performance Optimizations](#performance-optimizations)
-7. [Technical Stack](#technical-stack)
-8. [Future Roadmap](#future-roadmap)
+> Conceptual model with illustrative numbers. Not a diagnostic tool. Not medical advice.
 
 ---
 
-## Conceptual Framework
+## Table of contents
 
-### The Problem with Categorical Diagnosis
-
-The DSM-5 treats psychiatric conditions as discrete categories with binary thresholds (e.g., "5 out of 9 symptoms = Major Depression"). This model:
-
-1. **Ignores continuity**: Neurochemistry exists on continuous gradients, not discrete states
-2. **Creates artificial boundaries**: Symptom cutoffs (e.g., 4 vs 5 symptoms) don't reflect biological reality
-3. **Obscures comorbidity**: High overlap between diagnoses suggests shared neurochemical substrates
-4. **Fails to explain sub-threshold states**: Clinically significant suffering below diagnostic thresholds
-
-### The Solution: State Space Visualization
-
-NeuroVector Explorer models mental health as a **10-dimensional continuous state space** where:
-
-- Each dimension represents a neurochemical axis (dopamine, serotonin, GABA, etc.)
-- Symptoms **emerge** from neurochemical patterns (not defined categorically)
-- Diagnoses are **attractor regions** (stable states, not discrete clusters)
-- Boundaries are **permeable** (you can fly through them - they're just thresholds)
+1. [What changed from v3, and why](#what-changed-from-v3-and-why)
+2. [Running it](#running-it)
+3. [Things to try](#things-to-try)
+4. [The model](#the-model)
+5. [How the world is rendered](#how-the-world-is-rendered)
+6. [Code map](#code-map)
+7. [Honesty section](#honesty-section)
+8. [References](#references)
 
 ---
 
-## Neurochemistry Model
+## What changed from v3, and why
 
-### 10-Dimensional Neurochemical Axes
+v3 had a good thesis and a world that didn't express it. Its 3D space was three hand-picked composite axes (dopamine, arousal, mood), the 10D vectors were reverse-engineered *from* those 3D positions, and the world was clouds of dots clustered around spheres labeled DEPRESSIVE, ANXIOUS and so on. That's the categorical model again, just in 3D. And where you were in the space did nothing to you.
 
-Each axis represents a quantifiable neurobiological parameter (0-100 scale):
+v4 starts from the original idea instead:
 
-| ID | Axis | Brain Region | Behavioral Correlate |
-|----|------|--------------|---------------------|
-| A | Tonic Dopamine | Prefrontal Cortex | Executive function, working memory |
-| B | Phasic Dopamine Amplitude | Mesolimbic pathway | Motivation, reward salience |
-| C | Salience Error | Mesolimbic pathway | Prediction error, psychosis risk |
-| D | DAT Reuptake | Striatum | Dopamine clearance, ADHD medication target |
-| E | Tonic Serotonin | Raphe nuclei | Mood regulation, anxiety threshold |
-| F | Norepinephrine | Locus coeruleus | Arousal, stress response |
-| G | GABA Tone | Widespread | Inhibitory control, anxiety |
-| H | Glutamate Tone | Cortex | Excitatory drive, cognitive processing |
-| I | Amygdala Reactivity | Amygdala | Fear response, emotional processing |
-| J | HPA Axis Tone | Hypothalamus-pituitary-adrenal | Cortisol, chronic stress |
-
-### Neurochemical Constraint System
-
-The model implements **realistic physiological constraints** to prevent impossible neurochemical states:
-
-#### 1. Dopamine-Serotonin Antagonism
-```typescript
-// Weak inverse relationship - high DA tends to suppress 5-HT
-constrained[4] = serotonin * 0.7 + (100 - avgDA) * 0.3
-```
-
-#### 2. GABA-Glutamate Balance
-```typescript
-// Inhibitory/excitatory balance - should sum to ~100-120
-const targetSum = 110;
-const ratio = targetSum / (GABA + Glutamate);
-constrained[6] = GABA * ratio;
-constrained[7] = Glutamate * ratio;
-```
-
-#### 3. HPA Axis Suppression
-```typescript
-// Chronic cortisol suppresses dopamine and serotonin
-if (HPA > 60) {
-  suppressionFactor = (HPA - 60) / 40; // 0-1
-  constrained[0] *= (1 - suppressionFactor * 0.3); // DA
-  constrained[4] *= (1 - suppressionFactor * 0.25); // 5-HT
-}
-```
-
-### Symptom Emergence Functions
-
-Symptoms are **computed** from neurochemical patterns using weighted composite functions:
-
-#### Anhedonia
-```typescript
-anhedonia = (1 - phasicDA / 100) * 0.6 + (1 - serotonin / 100) * 0.4
-```
-Low mesolimbic dopamine (60%) + low serotonin (40%) → loss of pleasure capacity
-
-#### Anxiety
-```typescript
-anxiety = (NE / 100) * 0.4 + (1 - GABA / 100) * 0.3 + (amygdala / 100) * 0.3
-```
-High norepinephrine (40%) + low GABA (30%) + high amygdala reactivity (30%) → anxiety
-
-#### Executive Dysfunction
-```typescript
-executiveDysfunction = (1 - tonicDA_PFC / 100) * 0.6 + (glutamate / 100) * 0.4
-```
-Low PFC dopamine (60%) + high glutamate (40%) → impaired executive function
-
-#### Psychosis Risk
-```typescript
-psychosis = (salienceError / 100) * 0.5 + (1 - tonicDA_PFC / 100) * 0.25 + (glutamate / 100) * 0.25
-```
-High salience error (50%) + low PFC DA (25%) + high glutamate (25%) → psychotic symptoms
-
-### Attractor Regions (Psychiatric States)
-
-Instead of discrete clusters, the model defines **attractor basins** - regions of state space where certain neurochemical configurations are stable:
-
-| Attractor | Center (10D) | Radius | Prevalence | Neurochemical Signature |
-|-----------|-------------|--------|------------|------------------------|
-| **Balanced** | [55,55,15,55,55,55,55,55,50,50] | 30 | 62% | Optimal homeostasis |
-| **Depressive** | [25,40,20,60,20,35,60,40,55,70] | 25 | 12% | Low DA, low 5-HT, high HPA |
-| **Anxious** | [50,65,30,50,55,75,25,55,85,70] | 22 | 15% | High NE, low GABA, high amygdala |
-| **Inattentive** | [25,80,15,25,60,70,50,50,45,45] | 20 | 8% | Low PFC DA, high NE |
-| **Manic** | [70,95,30,45,40,70,50,60,60,55] | 18 | 2% | High phasic DA, unstable 5-HT |
-| **Psychotic** | [20,50,85,50,45,55,40,80,65,60] | 15 | 1% | High salience error, high glutamate |
-
-### Stability & Homeostasis Metrics
-
-#### Stability Score
-```typescript
-stability = attractorPull // 0-1, how deep inside an attractor basin
-```
-High stability = entrenched in a neurochemical state (hard to shift)
-Low stability = near attractor boundaries (volatile, treatment-responsive)
-
-#### Homeostasis Score
-```typescript
-homeostasis = (gabaGlutBalance + hpaRegulation + serotoninRegulation) / 3
-```
-High homeostasis = well-regulated systems (resilient to perturbation)
-Low homeostasis = dysregulated systems (vulnerable to cascade effects)
+| | v3 | v4 |
+|---|---|---|
+| **What a point in space is** | a dot, colored by its nearest diagnosis | a full configuration: 9 systems × level, sensitivity, transport, timing |
+| **What it does to you** | nothing | changes what you see, hear, how you move, what you think |
+| **Labels** | spheres placed by hand | isosurfaces *computed* from criteria you can edit |
+| **Time** | none | a live simulation: rhythms, sleep, tolerance, plasticity, emergent cycles |
+| **Network** | none | 22 signed interactions between systems, animated live |
+| **Medications** | roadmap | 9 modifiers that act on specific factors, with onset, washout and adaptation |
 
 ---
 
-## System Architecture
-
-### Component Hierarchy
-
-```
-NeuroVectorExplorerV3
-├── Canvas (React Three Fiber)
-│   ├── Scene
-│   │   ├── Lighting (ambient + 3 point lights)
-│   │   └── Fog (depth cueing)
-│   ├── 3D Objects
-│   │   ├── SymptomClouds (15,000 particles)
-│   │   ├── DiagnosisBoundaries (attractor spheres + labels)
-│   │   ├── AxisRails (10 dimension beams with flow particles)
-│   │   └── PathTracer (trajectory visualization)
-│   ├── Camera
-│   │   └── FlyThroughCamera (WASD navigation)
-│   └── Post-processing
-│       ├── Bloom (luminance glow)
-│       └── ChromaticAberration (depth effect)
-└── UI Overlays (HTML/Tailwind)
-    ├── NavigationHUD (controls panel)
-    ├── InstructionsOverlay (keyboard reference)
-    ├── RegenerateButton (force field regeneration)
-    └── StatusBar (system info)
-```
-
-### State Management (Zustand)
-
-```typescript
-interface StoreState {
-  // Data
-  stars: Star[];                    // Legacy field (unused in v3)
-
-  // Navigation
-  moveSpeed: number;                // Camera velocity (10-150)
-  mouseSensitivity: number;         // Look rotation speed
-  showAxisRails: boolean;           // Toggle dimension beams
-  showDiagnosisBoundaries: boolean; // Toggle attractor spheres
-
-  // Visualization
-  pointSize: number;                // Particle scale (0.5-5)
-  animationSpeed: number;           // Time dilation (0-3x)
-  activeAxes: Set<number>;          // Which dimensions to filter
-
-  // Profile System
-  profiles: ProfileSnapshot[];      // Saved camera positions
-  currentProfile: ProfileSnapshot | null;
-
-  // Path Tracing
-  pathPoints: PathPoint[];          // Trajectory history
-  isDrawingPath: boolean;           // Recording mode
-}
-```
-
-### Data Flow
-
-```
-User Input → FlyThroughCamera → Camera Transform
-                                      ↓
-                              SymptomClouds reads camera position
-                                      ↓
-                              Shader computes particle transforms
-                                      ↓
-                              GPU renders 15,000 particles/frame
-```
-
----
-
-## Dimensional Reduction & Projection
-
-### The Challenge
-
-**Input**: 10-dimensional neurochemical vector
-**Output**: 3D position for immersive navigation
-
-### Projection Strategy
-
-We use a **custom semantic projection** (not PCA) that preserves neurochemical meaning:
-
-```typescript
-function projectTo3D(vector: number[]): Vector3 {
-  // X-axis: Dopamine dominance (motivation/reward)
-  const xAxis = (tonicDA + phasicDA) / 2 - 50; // -50 to +50
-
-  // Y-axis: Arousal level (stress/activation)
-  const yAxis = (NE + (100 - GABA)) / 2 - 50;
-
-  // Z-axis: Mood valence (positive/negative affect)
-  const zAxis = (serotonin + (100 - HPAaxis)) / 2 - 50;
-
-  return new Vector3(xAxis * 8, yAxis * 8, zAxis * 8);
-}
-```
-
-### Why Not PCA?
-
-PCA maximizes variance but loses semantic meaning:
-- PC1 might be "general psychopathology" (meaningless)
-- Axes don't correspond to manipulable neurochemistry
-- Can't visualize medication effects (which target specific neurotransmitters)
-
-### Trade-offs
-
-**Pros**:
-- Axes have clear neurochemical interpretation
-- Medication effects are visually intuitive (SSRIs push along Z-axis)
-- Diagnostic boundaries make conceptual sense
-
-**Cons**:
-- Loses 7 dimensions of information
-- Overlapping projections (different 10D states → same 3D position)
-- Doesn't maximize visual separation
-
-**Future**: Implement dynamic axis selection (user chooses which 3 dimensions to project)
-
----
-
-## Visualization Techniques
-
-### SymptomClouds Component
-
-**Particle System**: 15,000 volumetric particles rendered via custom shaders
-
-#### Vertex Shader
-```glsl
-// Pulsation based on neurochemical stability
-float pulse = 0.85 + 0.15 * sin(
-  time * animationSpeed * (2.0 + (1.0 - stability) * 3.0) + phase * 6.28
-);
-
-// Flow drift (less stable states drift more)
-vec3 offset = vec3(
-  sin(time * 0.1 + phase) * 0.5,
-  cos(time * 0.15 + phase * 1.5) * 0.5,
-  sin(time * 0.12 + phase * 2.0) * 0.5
-) * (1.0 - stability) * 10.0;
-
-// Adaptive point size (perspective-correct)
-gl_PointSize = pointSize * density * pulse * (300.0 / -mvPosition.z);
-```
-
-#### Fragment Shader
-```glsl
-// Circular gradient with soft edges
-vec2 center = gl_PointCoord - 0.5;
-float dist = length(center);
-if (dist > 0.5) discard;
-
-// Glow intensity based on density
-float alpha = (1.0 - dist * 2.0) * density * 0.7;
-gl_FragColor = vec4(baseColor * (0.7 + glow * 0.3), alpha);
-```
-
-#### Color Mapping
-
-Particle color determined by nearest attractor:
-
-```typescript
-function getAttractorColor(vector: number[]): string {
-  let nearest = "balanced";
-  let minDist = Infinity;
-
-  for (const [name, attractor] of Object.entries(ATTRACTOR_REGIONS)) {
-    const dist = euclideanDistance(vector, attractor.center);
-    if (dist < minDist) {
-      minDist = dist;
-      nearest = name;
-    }
-  }
-
-  return ATTRACTOR_REGIONS[nearest].color;
-}
-```
-
-### DiagnosisBoundaries Component
-
-**Iso-surfaces**: Translucent spheres marking diagnostic thresholds
-
-```typescript
-// Each attractor gets 3 sphere layers
-<mesh position={attractorPosition}>
-  {/* Outer wireframe (visual structure) */}
-  <sphereGeometry args={[radius, 16, 16]} />
-  <meshBasicMaterial wireframe opacity={0.3} />
-
-  {/* Mid-layer solid (threshold boundary) */}
-  <sphereGeometry args={[radius, 32, 32]} />
-  <meshBasicMaterial transparent opacity={0.15} side={DoubleSide} />
-
-  {/* Inner glow (depth cueing) */}
-  <sphereGeometry args={[radius * 0.95, 32, 32]} />
-  <meshBasicMaterial transparent opacity={0.1} side={BackSide} />
-</mesh>
-```
-
-**Overlap Visualization**: Lines connecting intersecting boundaries (comorbidity zones)
-
-```typescript
-// Find all overlapping boundary pairs
-for (let i = 0; i < boundaries.length; i++) {
-  for (let j = i + 1; j < boundaries.length; j++) {
-    const distance = b1.position.distanceTo(b2.position);
-    const sumRadii = b1.radius + b2.radius;
-
-    if (distance < sumRadii) {
-      // Draw connection line with blended color
-      const mixedColor = new THREE.Color().lerpColors(
-        new THREE.Color(b1.color),
-        new THREE.Color(b2.color),
-        0.5
-      );
-      connections.push({ start: b1.position, end: b2.position, color: mixedColor });
-    }
-  }
-}
-```
-
-### AxisRails Component
-
-**Dimension Beams**: 10 glowing rails extending through space
-
-```typescript
-// Calculate rail orientation (spoke pattern)
-const angle = (index / 10) * Math.PI * 2;
-const tilt = Math.sin(index * 0.7) * Math.PI * 0.3;
-
-const direction = new Vector3(
-  Math.cos(angle) * Math.cos(tilt),
-  Math.sin(tilt),
-  Math.sin(angle) * Math.cos(tilt)
-).normalize();
-
-// Extend rail ±150 units from origin
-const startPoint = direction.clone().multiplyScalar(-150);
-const endPoint = direction.clone().multiplyScalar(150);
-```
-
-**Flowing Particles**: 50 particles per rail showing "current" direction
-
-```glsl
-// Particle flow animation (vertex shader)
-float flow = fract(phase + time * 0.2);
-float pulse = sin(flow * 3.14159) * isActive;
-gl_PointSize = (2.0 + pulse * 3.0) * (300.0 / -mvPosition.z);
-```
-
-### FlyThroughCamera Component
-
-**First-Person Navigation**: WASD + mouse with momentum physics
-
-```typescript
-// Calculate camera orientation from mouse movement
-const yawQuat = new Quaternion().setFromAxisAngle(
-  new Vector3(0, 1, 0),
-  rotation.yaw
-);
-const pitchQuat = new Quaternion().setFromAxisAngle(
-  new Vector3(1, 0, 0),
-  rotation.pitch
-);
-const orientation = yawQuat.multiply(pitchQuat);
-
-// Apply movement forces
-const forward = new Vector3(0, 0, -1).applyQuaternion(orientation);
-const right = new Vector3(1, 0, 0).applyQuaternion(orientation);
-const up = new Vector3(0, 1, 0);
-
-targetVelocity.addScaledVector(forward, moveDirection.forward);
-targetVelocity.addScaledVector(right, moveDirection.right);
-targetVelocity.addScaledVector(up, moveDirection.up);
-
-// Smooth velocity with damping (swimming feel)
-velocity.lerp(targetVelocity, 1 - dampingFactor);
-camera.position.addScaledVector(velocity, delta);
-```
-
----
-
-## Performance Optimizations
-
-### Particle Rendering
-
-**Challenge**: 15,000 particles at 60fps = 900,000 particles/second
-
-**Solution**: GPU-accelerated instanced rendering
-- Single `BufferGeometry` for all particles
-- Shader-based animation (no JS per-frame loop)
-- Attribute buffers for per-particle data:
-  ```typescript
-  geometry.setAttribute('position', new BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new BufferAttribute(colors, 3));
-  geometry.setAttribute('density', new BufferAttribute(densities, 1));
-  geometry.setAttribute('stability', new BufferAttribute(stabilities, 1));
-  geometry.setAttribute('phase', new BufferAttribute(phases, 1));
-  ```
-
-### Memory Management
-
-**State Generation**: 15,000 neurochemical states = ~10MB RAM
-- Generated once on mount
-- Cached in React state
-- Regenerated only on button click
-
-**Garbage Collection**: Minimal per-frame allocations
-- Reuse Vector3 instances
-- BufferAttribute updates (not recreation)
-- Shader uniform updates (not material recreation)
-
-### Render Pipeline
-
-**Depth Cueing**: Fog reduces distant particle rendering cost
-```typescript
-<fog attach="fog" args={["#000000", 300, 1500]} />
-```
-Particles beyond 1500 units fade to black (GPU culls fully transparent pixels)
-
-**Post-processing**: Single-pass bloom + chromatic aberration
-- Bloom luminance threshold = 0 (all particles glow)
-- Chromatic aberration adds depth perception without render cost
-
----
-
-## Technical Stack
-
-### Core Libraries
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| **React** | 19.2.0 | UI framework |
-| **Next.js** | 16.0.0 | App framework, Turbopack |
-| **Three.js** | 0.180.0 | WebGL rendering |
-| **@react-three/fiber** | 9.4.0 | React Three.js renderer |
-| **@react-three/drei** | 10.7.6 | Three.js helpers (Text, OrbitControls) |
-| **@react-three/postprocessing** | 3.0.4 | Shader effects (Bloom, ChromaticAberration) |
-| **Zustand** | 5.0.8 | State management |
-| **Tailwind CSS** | 4.1.14 | UI styling |
-| **TypeScript** | 5.9.3 | Type safety |
-
-### File Structure
-
-```
-/Users/ttig/projects/neuro/
-├── app/
-│   ├── layout.tsx              # Root layout with Tailwind
-│   ├── page.tsx                # Entry point
-│   └── globals.css             # Global styles + Tailwind import
-│
-├── Core Components
-│   ├── neuro.tsx               # Main application orchestrator
-│   ├── FlyThroughCamera.tsx    # First-person navigation
-│   ├── SymptomClouds.tsx       # Particle system renderer
-│   ├── DiagnosisBoundaries.tsx # Attractor sphere visualization
-│   ├── AxisRails.tsx           # Dimension beam renderer
-│   └── PathTracer.tsx          # Trajectory visualization
-│
-├── Data & Logic
-│   ├── NeurochemistryModel.tsx # Core neurochemistry algorithms
-│   ├── NEURO_AXES.tsx          # 10D axis definitions
-│   ├── NEURO_CLUSTERS.tsx      # Legacy cluster data (unused in v3)
-│   ├── useStore.tsx            # Zustand state management
-│   └── StoreState.tsx          # TypeScript interfaces
-│
-├── Configuration
-│   ├── package.json            # Dependencies
-│   ├── tsconfig.json           # TypeScript config
-│   ├── tailwind.config.js      # Tailwind configuration
-│   └── postcss.config.js       # PostCSS with Tailwind plugin
-│
-└── Legacy (v2 components - not used)
-    ├── generateAdvancedStarData.tsx
-    ├── AdvancedStarField.tsx
-    ├── ConnectionLines.tsx
-    └── [various analytics files]
-```
-
----
-
-## Future Roadmap
-
-#### Medication Effect Visualization
-  - SSRIs: push +Z (increase serotonin)
-  - Stimulants: push +X (increase dopamine)
-  - Benzodiazepines: push +Y (increase GABA)
-  - ... (and many others)
-  - Show predicted vector field effects
-
-
-### Phase 2: Enhanced Interaction
-
-#### Experimental Profile System
-- Input symptoms, medications, diagnoses
-- System places subject in the neurochemical space
-- Visualize subject's trajectory over time (mood tracking)
-- Compare subject to population distributions
-
-#### Medication Effect Visualization (Advanced)
-- Visualize treatment paths (how subject would move through space)
-
-#### Temporal Dynamics
-- Scrub through time (circadian rhythms, mood episodes)
-- Show attractor stability over time
-- Visualize medication washout periods
-
-### Phase 3: Native VR (Quest 3) (3-4 weeks)
-
-#### Unity Port
-- Migrate proven concepts to Unity 2022 LTS
-- Meta XR SDK integration
-- Hand tracking for navigation (grab and pull through space)
-
-#### Immersive Features
-- **Haptic feedback**: Controller vibrations when crossing diagnosis boundaries
-- **Spatial audio**: Each neurotransmitter axis emits a frequency/tone
-- **Multi-scale exploration**: Zoom from macro (entire landscape) to micro (individual symptom interactions)
-- **Multi-user**: Explore together, see where others are in the space
-
-### Phase 4: Real Clinical Data (flexible timeline)
-
-#### Data Integration
-- Load medication database (SSRIs, stimulants, antipsychotics)
-- National Comorbidity Survey (NCS) symptom correlations
-- UK Biobank mental health genomics
-- Medication response databases (STAR*D, CATIE)
-- Neuroimaging receptor density studies
-
-#### Research Applications
-- Publication-quality visualizations
-- Hypothesis generation (which neurochemical patterns are understudied?)
-- Treatment response prediction
-- Comorbidity network analysis
-
-### Phase 5: Educational & Clinical Tools
-
-#### Narrative Modes
-- Guided tours explaining key concepts
-- Case studies (show how similar profiles get different labels)
-- Interactive demonstrations (lower the ADHD threshold, watch space reorganize)
-
-#### Clinical Decision Support (speculative)
-- Input patient profile → visualize position in space
-- Show nearest treatment-responsive states
-- Predict medication effects
-- Track treatment trajectory over time
-
----
-
-## Scientific Validation
-
-### Model Limitations
-
-This is a **conceptual demonstration**, not a validated clinical tool:
-
-1. **Synthetic data**: Neurochemical vectors are generated from idealized attractor models, not real patient data
-2. **Simplified physiology**: Real neurotransmitter dynamics involve receptor subtypes, regional heterogeneity, and temporal dynamics not captured here
-3. **Projection artifacts**: 10D → 3D projection loses information and creates visual overlaps
-4. **Static model**: Ignores dynamic processes (neuroplasticity, tolerance, sensitization)
-
-### Neurochemical Assumptions
-
-The model makes simplifying assumptions based on current neuroscience:
-
-- **DA-5HT antagonism**: Weak inverse relationship supported by PET studies (Kapur et al., 2002)
-- **GABA-Glu balance**: E/I balance is fundamental to cortical function (Yizhar et al., 2011)
-- **HPA suppression**: Chronic cortisol suppresses monoamines (McEwen, 2007)
-- **Symptom emergence**: Composite functions approximate known neurochemical correlates (Robbins & Arnsten, 2009)
-
-### Validation Strategy (Future)
-
-To validate this model clinically:
-
-1. **Correlation study**: Map real patients to model space, check if positions correlate with diagnoses
-2. **Medication prediction**: Does model predict treatment response better than diagnosis alone?
-3. **Longitudinal tracking**: Do patients move through space as predicted during treatment?
-4. **Comorbidity analysis**: Are overlapping boundaries predictive of comorbid diagnoses?
-
----
-
-## References
-
-### Neuroscience Literature
-
-- Kapur, S., & Remington, G. (2002). Serotonin-dopamine interaction and its relevance to schizophrenia. *American Journal of Psychiatry*, 153(4), 466-476.
-
-- Yizhar, O., et al. (2011). Neocortical excitation/inhibition balance in information processing and social dysfunction. *Nature*, 477(7363), 171-178.
-
-- McEwen, B. S. (2007). Physiology and neurobiology of stress and adaptation: Central role of the brain. *Physiological Reviews*, 87(3), 873-904.
-
-- Robbins, T. W., & Arnsten, A. F. (2009). The neuropsychopharmacology of fronto-executive function. *Annual Review of Neuroscience*, 32, 267-287.
-
-### Computational Methods
-
-- Van der Maaten, L., & Hinton, G. (2008). Visualizing data using t-SNE. *Journal of Machine Learning Research*, 9, 2579-2605.
-
-- Insel, T., et al. (2010). Research Domain Criteria (RDoC): Toward a new classification framework for research on mental disorders. *American Journal of Psychiatry*, 167(7), 748-751.
-
-### Web Technologies
-
-- Three.js Documentation: https://threejs.org/docs/
-- React Three Fiber: https://docs.pmnd.rs/react-three-fiber/
-- WebGL Specification: https://www.khronos.org/webgl/
-
----
-
-## Development
-
-### Running Locally
+## Running it
 
 ```bash
-# Install dependencies
 npm install
+npm run dev          # http://localhost:3000
+```
 
-# Start dev server
-npm run dev
+Other scripts:
 
-# Open browser
-open http://localhost:3001
+```bash
+npm run build        # production build (type-checks everything)
+npm run typecheck    # TypeScript only
+npm run check:model  # behavioral checks on the science (see "The model")
 ```
 
 ### Controls
 
 | Input | Action |
-|-------|--------|
-| **Click canvas** | Lock pointer, start flying |
-| **WASD** | Move forward/back/left/right |
-| **Space** | Move up |
-| **Shift** | Move down |
-| **Mouse** | Look around |
-| **ESC** | Unlock pointer |
+|---|---|
+| **Click** + mouse | Look around (Esc releases the pointer). Drag-to-look also works. |
+| **W A S D** / arrows | Fly |
+| **Space** / **Shift** (or **E** / **Q**) | Up / down |
+| **F** (hold) | Boost |
+| **Mouse wheel** | Base speed |
+| **1 – 4** | Time scale: Moment (1 min/s), Day (1 h/s), Weeks (1 day/s), Months (1 week/s) |
+| **P** | Pause time |
+| **H** | Hide the HUD |
 
-### Configuration
+Desktop browser with a real GPU recommended. Headphones if you turn on sound.
 
-Edit navigation settings in top-right panel:
-- **Move Speed**: 10-150 (default: 50)
-- **Axis Rails**: Toggle dimension beams on/off
-- **Diagnosis Boundaries**: Toggle attractor spheres on/off
+---
 
-### Regenerate Field
+## Things to try
 
-Click the cyan **"Regenerate Field"** button (left side, middle height) to regenerate all 15,000 particles with new random positions within attractor basins.
+1. **Go → "3 a.m. dread".** The world goes dark and red-black, the edges close in, the camera trembles, and the heartbeat picks up. The compass arrows for serotonin, GABA and oxytocin point *behind* you: relief is that way. Follow them.
+2. **Go → "Everything is grey", then Labels.** Color drains out, the fog thickens, the inner voice says the food tastes like cardboard. Now drag *What counts as a symptom* toward strict and watch the depressive-episode dot go dark. Nothing about the place changed.
+3. **Labels → show boundaries, then fly.** The membranes are where criteria flip. Cross one and you get a toast: *"Nothing about the chemistry jumped. You just crossed a line someone drew."* Turn several on and you can see where they overlap. That overlap is comorbidity, and it's just geometry.
+4. **Labels → Self-cycling zones → fly into the green → press 3 (Weeks).** The mood loop oscillates on its own there: multi-week highs and crashes, emergent from fast positive feedback plus slow negative feedback. Turn on **Lithium** and watch the swings damp out (except in the strongest-drive regions).
+5. **Somewhere excitable (Here tab says "Excitable") → All-nighter.** Sleep loss kicks the mood loop. In an excitable zone it fires a full episode, a high that lasts days and then a crash, and then it settles. Same brain, one bad night.
+6. **Any typical spot → Benzodiazepine on, Weeks scale.** Calm jumps, then tolerance slowly eats it. Switch it off and calm drops *below* where you started (rebound), then recovers over about a week.
+7. **SSRI on, Weeks scale.** Serotonin rises within days. Mood keeps improving for weeks after that, as the slow plasticity variable catches up.
+8. **View → Sensitivity layer.** Receptor sensitivity varies across space independently of level. Two spots with identical "amounts" can feel completely different. You can't see that on a blood test.
+9. **View → First-person ↔ observer.** Slide to *see it plainly* to compare what a place *is* with what it's *like*.
+
+---
+
+## The model
+
+Everything lives in `src/model/` as plain TypeScript with no rendering code, so it can be read, tested and reused on its own.
+
+### 1. Nine systems, four factors (`systems.ts`)
+
+| System | What it does (roughly) | Cleared by |
+|---|---|---|
+| Dopamine, reward (DA·R) | wanting, motivation, "this matters" | DAT |
+| Dopamine, focus (DA·F) | holding a thought steady (inverted-U) | COMT + NET |
+| Serotonin (5-HT) | patience, mood floor, threat volume | SERT |
+| Norepinephrine (NE) | alertness, vigilance | NET |
+| GABA | brakes, settling, sleep | GAT |
+| Glutamate (GLU) | accelerator, speed of thought, plasticity | EAAT |
+| Cortisol (HPA axis) | stress mobilization | metabolism + GR feedback |
+| Endogenous opioids (OPI) | *liking*, i.e. pleasure itself | peptidases |
+| Oxytocin (OXT) | bonding, social safety | peptidases |
+
+Each one has the four factors that decide how it actually lands:
+
+- **Level**: how much is out there (release, synthesis, tone)
+- **Sensitivity**: how strongly receptors respond to it (affinity, density, up/down-regulation)
+- **Transport**: how fast it's cleared (reuptake transporters, enzymes, metabolism)
+- **Time**: how fast it responds, how jumpy it is, and the rhythms it rides on
+
+What you feel is driven by the **effective signal** = level × sensitivity, after adaptation, not by the raw amount.
+
+### 2. The network (`network.ts`)
+
+22 signed edges with textbook mechanisms: glutamate drives VTA dopamine, serotonin brakes it via 5-HT2C, μ-opioids disinhibit it by silencing GABA interneurons, the LC–CRH stress loop runs noradrenaline and cortisol into each other, oxytocin damps the HPA axis, GABA and glutamate hold each other in E/I balance, and so on. Hover any edge in the HUD to read its mechanism. Magnitudes are illustrative; signs and mechanisms are standard.
+
+### 3. The landscape (`field.ts`)
+
+A continuous field assigns all 27 numbers (9 systems × level / sensitivity / transport), plus mood-loop drive, tempo and volatility, to every point in a 480³ world. It's built from **unlabeled "weather systems"**: smooth basins where several systems shift together, because real neurochemistry covaries (a stress storm, a depletion basin, a warm-and-safe basin, aberrant salience, and so on). Each system also drifts on its own noise field, and sensitivity and transport vary independently of level. Where basins overlap you get blends.
+
+"Typical" is defined as the population **median**: the world samples itself and re-centers so each system's median signal is exactly typical. Labels are never placed in the field. They're computed later.
+
+### 4. Time (`dynamics.ts`)
+
+Wherever the camera is, a live simulation runs on that location's set points:
+
+- **Kinetics**: each system relaxes toward its target at its own time constant (NE in minutes, serotonin in hours).
+- **Coupling**: each system's release drive depends on the others' current signal, through the network.
+- **Receptor adaptation**: sustained signal above or below local baseline makes receptors push back over days. That's tolerance, and when the push is removed, it's withdrawal.
+- **Circadian rhythm**: cortisol peaks around 8am, arousal in the afternoon.
+- **Sleep**: pressure builds while awake and drains while asleep, a cartoon of Borbély's two-process model. High arousal blocks sleep onset, so insomnia *emerges*. Missed sleep accumulates debt.
+- **Plasticity**: a weeks-scale variable (think BDNF) that follows sustained serotonin and dopamine signal and erodes under chronic cortisol. This is why SSRI effects lag in the model.
+- **The mood loop**: a FitzHugh–Nagumo oscillator, the textbook model of excitable systems (fast positive feedback, slow negative feedback). Depending on the local *drive* it rests, fires a single episode when kicked (excitable), or **cycles on its own**. Sleep loss and stress kick it, and lithium damps it. Cycles fall out of the parameters. Nobody wrote "bipolar zone" anywhere.
+
+### 5. Experience (`experience.ts`)
+
+Eleven felt dimensions (mood, energy, wanting, liking, calm, threat, focus, thought speed, meaning-loading, connection, tiredness) computed from effective signals. A few deliberate distinctions:
+
+- **Wanting ≠ liking**: dopamine drives motivation, opioids drive pleasure (Berridge & Robinson).
+- **Focus is an inverted-U** in prefrontal dopamine and NE: too little *or* too much fails (Arnsten).
+- **Aberrant salience** comes from limbic dopamine running high while prefrontal dopamine is low (Kapur; Howes & Kapur).
+
+An **inner voice** turns the current state into a sentence you'd recognize from a Tuesday.
+
+### 6. Modifiers (`modifiers.ts`)
+
+Each one acts on a specific factor, with its own onset and washout:
+
+| Modifier | Factor | What it does here |
+|---|---|---|
+| SSRI | transport | slows serotonin reuptake; mood follows plasticity over weeks |
+| Stimulant | transport | blocks DAT/NET, nudges release; climbs the focus inverted-U |
+| Benzodiazepine | sensitivity | GABA-A responds harder; tolerance + rebound |
+| Antipsychotic | sensitivity | blunts D2 signal; quiets salience and flattens drive (a real tradeoff) |
+| Lithium | rhythm | damps the mood loop (mechanism still debated) |
+| Caffeine | level | masks sleep pressure, nudges NE / prefrontal DA |
+| Alcohol | sensitivity | GABA up, NMDA down, opioids up; the adaptation produces "hangxiety" |
+| Exercise | transport | faster cortisol recovery, endorphins, plasticity |
+| Time with your people | level | oxytocin and opioids; cortisol down through the network |
+
+Plus one-shot events: stressor, panic surge, good news, a real hug, all-nighter.
+
+### 7. The label lens (`lenses.ts`)
+
+Five cartoons of the *structure* of DSM-5 criteria (depressive episode, hypomanic episode, generalized anxiety, inattentive ADHD pattern, psychotic features). Each one is a set of symptoms defined as cutoffs on the felt dimensions, a required count including a core symptom, and a duration.
+
+The Labels tab evaluates each one three ways:
+
+- **Map**: the baseline chemistry of this spot (what the 3D membranes show)
+- **Now**: your live state, including rhythms, meds and the mood loop
+- **Over time**: the duration criterion, checked on daily averages of the time you've actually spent
+
+They often disagree, and that's the point.
+
+### Behavioral checks (`scripts/model-check.ts`)
+
+`npm run check:model` asserts the qualitative behavior across two different world seeds: typical really is the median; every label exists but covers a minority of the map; most of the map carries no label; loosening criteria grows every label; self-cycling zones exist but are rare; typical places don't cycle; SSRIs act on a delay; benzos show tolerance and rebound; an all-nighter in an excitable zone fires a high-then-crash episode. If a tweak breaks the science, this fails.
+
+---
+
+## How the world is rendered
+
+- **Nebulae** (`scene/Nebulae.tsx`): ~70k particles sampled from the field. Each spot's most off-typical system claims the particle, normalized per system so none dominates. **Filled glow = abundant, hollow ring = depleted.** Layers: chemistry, sensitivity, transport, or feelings.
+- **Membranes** (`scene/Membranes.tsx`): marching-cubes isosurfaces of each label's criteria margin, with fresnel glow. They re-mesh live when you change the rules. Self-cycling zones breathe.
+- **Perception** (`scene/Perception.tsx`): post-processing driven by the current state. Low mood desaturates and thickens the fog, threat brings a tunnel vignette, harder contrast and a red-black void, pleasure adds bloom, and salience adds chromatic fringing, grain and random "meaningful" flares.
+- **Flight** (`scene/Flight.tsx`): energy sets speed, fatigue adds inertia, threat adds tremor and a heartbeat FOV pulse, racing thoughts widen the view. Low focus spawns distractor motes that drift across your vision (`scene/Ambient.tsx`).
+- **Soundscape** (`audio/soundscape.ts`): WebAudio, no samples. The drone detunes into beating under threat, the filter opens with mood, the heartbeat follows arousal, and glassy pings come with aberrant salience.
+- **HUD** (`ui/`): live network graph, neurochemical compass (arrows toward *more* of each system or feeling), timeline at four time scales with event buttons, and the side panel (Here / Labels / Modifiers / Go / View).
+
+The simulation runs in a plain engine object outside React (`engine/engine.ts`). The scene mutates it every frame and the HUD polls it at 4–12 Hz, so 60 fps chemistry never turns into 60 fps re-renders.
+
+---
+
+## Code map
+
+```
+app/                 Next.js entry (page loads src/App client-side only)
+src/
+  App.tsx            Canvas + HUD layout, keyboard, soundscape wiring
+  store.ts           UI state (zustand)
+  engine/engine.ts   world + grid + live simulation + history buffers
+  model/             the science (no rendering code)
+    systems.ts       9 systems and their factors
+    network.ts       22 signed interactions + equilibrium solver
+    field.ts         the continuous landscape
+    grid.ts          sampled lattice for particles / membranes / search
+    dynamics.ts      the time simulation (kinetics, adaptation, sleep, mood loop)
+    experience.ts    chemistry → felt dimensions + inner voice
+    modifiers.ts     medications, substances, habits, events
+    lenses.ts        label criteria (cutoffs, counts, durations)
+    places.ts        "take me somewhere that feels like…"
+    random.ts        seeded RNG + simplex noise
+  scene/             three.js / react-three-fiber
+  ui/                HUD components
+  audio/             WebAudio soundscape
+scripts/model-check.ts
+legacy/              v2/v3 components, kept for reference (excluded from the build)
+scratch/             not part of the app (excluded from the build)
+```
+
+---
+
+## Honesty section
+
+- **Synthetic, illustrative numbers.** The structure (which systems, which interactions and their signs, which factors, which dynamics) is grounded in the literature. The magnitudes are tuned for plausibility and legibility, not measured.
+- **Massive simplification.** Nine systems stand in for hundreds of receptor subtypes, regions, peptides, hormones, immune signals and genes. Real brains aren't spatially smooth fields; the 3D world is a navigable slice through a much higher-dimensional space.
+- **The criteria are cartoons.** The lenses copy the *shape* of DSM-style rules (cutoffs, counts, durations), not their text.
+- **The mood loop is a metaphor with math.** FitzHugh–Nagumo is a generic excitable-system model. Using it for mood cycling is a modeling choice, in the spirit of published dynamical models of bipolar disorder, not a claim about mechanism.
+- **Not a diagnostic tool, not medical advice.** If anything here resonates personally, take it to a clinician, ideally one who also thinks in continua.
+
+---
+
+## References
+
+### Dimensional and network views of psychopathology
+- Insel, T., et al. (2010). Research Domain Criteria (RDoC): Toward a new classification framework for research on mental disorders. *American Journal of Psychiatry*, 167(7), 748–751.
+- Borsboom, D. (2017). A network theory of mental disorders. *World Psychiatry*, 16(1), 5–13.
+- Kotov, R., et al. (2017). The Hierarchical Taxonomy of Psychopathology (HiTOP): A dimensional alternative to traditional nosologies. *Journal of Abnormal Psychology*, 126(4), 454–477.
+
+### Neurochemistry used in the model
+- Kapur, S., & Remington, G. (1996). Serotonin–dopamine interaction and its relevance to schizophrenia. *American Journal of Psychiatry*, 153(4), 466–476.
+- Yizhar, O., et al. (2011). Neocortical excitation/inhibition balance in information processing and social dysfunction. *Nature*, 477(7363), 171–178.
+- McEwen, B. S. (2007). Physiology and neurobiology of stress and adaptation: Central role of the brain. *Physiological Reviews*, 87(3), 873–904.
+- Robbins, T. W., & Arnsten, A. F. T. (2009). The neuropsychopharmacology of fronto-executive function. *Annual Review of Neuroscience*, 32, 267–287.
+- Arnsten, A. F. T. (2009). Stress signalling pathways that impair prefrontal cortex structure and function. *Nature Reviews Neuroscience*, 10(6), 410–422.
+- Berridge, K. C., & Robinson, T. E. (1998). What is the role of dopamine in reward: hedonic impact, reward learning, or incentive salience? *Brain Research Reviews*, 28(3), 309–369.
+- Kapur, S. (2003). Psychosis as a state of aberrant salience. *American Journal of Psychiatry*, 160(1), 13–23.
+- Howes, O. D., & Kapur, S. (2009). The dopamine hypothesis of schizophrenia: Version III, the final common pathway. *Schizophrenia Bulletin*, 35(3), 549–562.
+- Duman, R. S., & Monteggia, L. M. (2006). A neurotrophic model for stress-related mood disorders. *Biological Psychiatry*, 59(12), 1116–1127.
+
+### Dynamics, sleep and cycles
+- FitzHugh, R. (1961). Impulses and physiological states in theoretical models of nerve membrane. *Biophysical Journal*, 1(6), 445–466.
+- Nagumo, J., Arimoto, S., & Yoshizawa, S. (1962). An active pulse transmission line simulating nerve axon. *Proceedings of the IRE*, 50(10), 2061–2070.
+- Goldbeter, A. (2011). A model for the dynamics of bipolar disorders. *Progress in Biophysics and Molecular Biology*, 105(1–2), 119–127.
+- Borbély, A. A. (1982). A two process model of sleep regulation. *Human Neurobiology*, 1(3), 195–204.
+- Wehr, T. A., Sack, D. A., & Rosenthal, N. E. (1987). Sleep reduction as a final common pathway in the genesis of mania. *American Journal of Psychiatry*, 144(2), 201–204.
+
+### Web technologies
+- Three.js: https://threejs.org/docs/
+- React Three Fiber: https://docs.pmnd.rs/react-three-fiber/
+- postprocessing: https://github.com/pmndrs/postprocessing
 
 ---
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT
 
 ---
 
@@ -801,9 +373,9 @@ Clanker: Does this have anything to do with the continuum transfunctioner?
 
 For questions, feedback, or collaboration inquiries, open an issue on GitHub.
 
-**Version**: 3.0.0
-**Last Updated**: November 2025
-**Status**: Prototype (Phase 1 Complete)
+**Version**: 4.0.0
+**Last Updated**: October 2026
+**Status**: Prototype. The space is the state now.
 
 ---
 

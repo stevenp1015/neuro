@@ -1,16 +1,17 @@
 {
-  "name": "neuro",
-  "version": "1.0.0",
-  "main": "index.js",
+  "name": "neurovector-explorer",
+  "version": "4.0.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "check:model": "tsx scripts/model-check.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Fly through a continuous neurochemical landscape where the space is the state.",
   "dependencies": {
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.4.0",
@@ -30,6 +31,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.16",
-    "autoprefixer": "^10.4.21"
-  }
+    "autoprefixer": "^10.4.21",
+    "tsx": "^4.20.6"
+  },
+  "private": true
 }

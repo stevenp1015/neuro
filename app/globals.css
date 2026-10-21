@@ -1,19 +1,185 @@
 @import "tailwindcss";
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+:root {
+  --nv-bg: #02030a;
+  --nv-panel: rgba(8, 11, 24, 0.72);
+  --nv-border: rgba(140, 160, 220, 0.14);
+  --nv-text: #dfe5f5;
+  --nv-dim: #8a93ad;
+  --nv-faint: #586079;
+  --nv-accent: #8ce99a;
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  background-color: #000000;
-  color: #ffffff;
+@layer base {
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--nv-bg);
+    color: var(--nv-text);
+  }
+
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
-body {
-  font-family: 'Courier New', monospace;
+@layer components {
+  .nv-mono {
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .nv-panel {
+    background: var(--nv-panel);
+    border: 1px solid var(--nv-border);
+    border-radius: 14px;
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    padding: 14px;
+    pointer-events: auto;
+  }
+
+  .nv-label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nv-dim);
+    font-weight: 600;
+  }
+
+  .nv-chip {
+    font-size: 11px;
+    line-height: 1;
+    padding: 6px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--nv-border);
+    color: var(--nv-dim);
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.15s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .nv-chip:hover {
+    color: var(--nv-text);
+    border-color: rgba(180, 195, 240, 0.35);
+  }
+  .nv-chip-on {
+    color: var(--nv-text);
+    border-color: rgba(180, 195, 240, 0.6);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .nv-btn {
+    font-size: 12px;
+    padding: 7px 12px;
+    border-radius: 9px;
+    border: 1px solid var(--nv-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--nv-text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .nv-btn:hover {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(180, 195, 240, 0.35);
+  }
+
+  .nv-tab {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 0;
+    color: var(--nv-faint);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    flex: 1;
+    text-align: center;
+  }
+  .nv-tab:hover {
+    color: var(--nv-dim);
+  }
+  .nv-tab-on {
+    color: var(--nv-text);
+    border-bottom-color: var(--nv-accent);
+  }
+
+  .nv-scroll {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(140, 160, 220, 0.25) transparent;
+  }
+
+  input[type="range"].nv-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+  }
+  input[type="range"].nv-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--nv-text);
+    box-shadow: 0 0 10px rgba(140, 233, 154, 0.5);
+    cursor: pointer;
+  }
+  input[type="range"].nv-range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: var(--nv-text);
+    cursor: pointer;
+  }
+
+  kbd {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--nv-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--nv-text);
+  }
+}
+
+@keyframes nv-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.nv-fade-in {
+  animation: nv-fade-in 0.5s ease both;
+}
+
+/* text that changes in place never fully disappears, even on a struggling GPU */
+@keyframes nv-soft-in {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.nv-soft-in {
+  animation: nv-soft-in 0.6s ease both;
+}
+
+@keyframes nv-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
 }
