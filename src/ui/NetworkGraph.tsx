@@ -79,7 +79,11 @@ export function NetworkGraph() {
               strokeDasharray="3 5"
               markerEnd={`url(#${positive ? "nv-arrow-pos" : "nv-arrow-neg"})`}
               style={{
-                animation: `nv-dash ${Math.max(0.35, 2.4 - mag * 2)}s linear infinite`,
+                // longhands only: React warns when the shorthand and animationDirection mix
+                animationName: "nv-dash",
+                animationDuration: `${Math.max(0.35, 2.4 - mag * 2)}s`,
+                animationTimingFunction: "linear",
+                animationIterationCount: "infinite",
                 animationDirection: flowing ? "normal" : "reverse",
               }}
             >
